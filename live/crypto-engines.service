@@ -1,0 +1,29 @@
+# systemd SYSTEM service: auto-start the crypto_v2 forward engines on every WSL boot.
+# Install (run once, needs sudo):
+#   sudo cp /home/user/crypto_v2/live/crypto-engines.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now crypto-engines.service
+# Inspect:  systemctl status crypto-engines.service   |   journalctl -u crypto-engines -b
+# Attach:   tmux attach -t crypto                      (as user 'user')
+#
+# Type=oneshot + RemainAfterExit keeps the unit "active" after boot_engines.sh returns;
+# the tmux server it spawns keeps running in the unit's cgroup. `systemctl stop` runs
+# ExecStop, which tears the tmux session (and thus the engines) down cleanly.
+[Unit]
+Description=crypto_v2 forward engines (main + conditional) + dashboard, in tmux 'crypto'
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+User=user
+Group=user
+WorkingDirectory=/home/user/crypto_v2
+Environment=HOME=/home/user
+ExecStart=/home/user/crypto_v2/live/boot_engines.sh
+ExecStop=/usr/bin/tmux kill-session -t crypto
+TimeoutStartSec=180
+
+[Install]
+WantedBy=multi-user.target

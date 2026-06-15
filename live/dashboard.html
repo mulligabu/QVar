@@ -1,0 +1,417 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>◢ MAXWELL ◣ live</title>
+<style>
+  :root{--bg:#04070f;--panel:rgba(10,18,32,.72);--line:#13324a;--fg:#bfe9ff;--mut:#5d7392;
+        --cy:#22e7ff;--mag:#ff3df0;--grn:#27ff9e;--red:#ff4d6d;--amb:#ffcf4d}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);
+       font:12px/1.45 ui-monospace,"SFMono-Regular",Menlo,monospace;overflow-x:hidden}
+  /* animated grid backdrop */
+  body::before{content:"";position:fixed;inset:0;z-index:-2;
+    background:
+      linear-gradient(rgba(34,231,255,.05) 1px,transparent 1px) 0 0/40px 40px,
+      linear-gradient(90deg,rgba(34,231,255,.05) 1px,transparent 1px) 0 0/40px 40px,
+      radial-gradient(circle at 50% 0%,rgba(34,231,255,.10),transparent 60%);
+    animation:scroll 22s linear infinite}
+  @keyframes scroll{to{background-position:0 40px,40px 0,0 0}}
+  body::after{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
+    background:repeating-linear-gradient(0deg,rgba(0,0,0,0) 0 2px,rgba(0,0,0,.18) 3px)}
+  header{display:flex;align-items:center;gap:18px;padding:14px 20px;
+    border-bottom:1px solid var(--line);background:linear-gradient(180deg,rgba(34,231,255,.06),transparent)}
+  h1{font-size:16px;margin:0;letter-spacing:3px;color:#fff;text-shadow:0 0 12px var(--cy)}
+  .sub{color:var(--cy);text-shadow:0 0 8px var(--cy)}
+  .mut{color:var(--mut)} .grn{color:var(--grn)} .red{color:var(--red)} .cy{color:var(--cy)} .amb{color:var(--amb)}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--grn);box-shadow:0 0 10px var(--grn);
+    display:inline-block;animation:pulse 1.4s infinite}
+  @keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 10px var(--grn)}50%{opacity:.35;box-shadow:0 0 2px var(--grn)}}
+  .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:13px;padding:16px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:7px;padding:12px 14px;
+    backdrop-filter:blur(3px);box-shadow:inset 0 0 24px rgba(34,231,255,.04),0 0 0 1px rgba(34,231,255,.03)}
+  .panel h2{font-size:10px;letter-spacing:2px;color:var(--cy);margin:0 0 10px;text-transform:uppercase;
+    border-left:2px solid var(--cy);padding-left:8px;text-shadow:0 0 8px rgba(34,231,255,.6)}
+  .c12{grid-column:span 12}.c8{grid-column:span 8}.c6{grid-column:span 6}.c4{grid-column:span 4}.c3{grid-column:span 3}
+  table{width:100%;border-collapse:collapse;font-size:11.5px}
+  th,td{text-align:right;padding:3px 7px;border-bottom:1px solid rgba(19,50,74,.6);white-space:nowrap}
+  th:first-child,td:first-child{text-align:left}
+  th{color:var(--mut);font-weight:500;letter-spacing:.5px}
+  tr:hover td{background:rgba(34,231,255,.05)}
+  .big{font-size:30px;font-weight:700;letter-spacing:1px} .glow{text-shadow:0 0 14px currentColor}
+  .kpi{display:flex;gap:26px;flex-wrap:wrap}.kpi div{display:flex;flex-direction:column}
+  .kpi span{font-size:9px;color:var(--mut);letter-spacing:1px;text-transform:uppercase}
+  .pill{padding:1px 7px;border-radius:10px;background:rgba(34,231,255,.10);border:1px solid var(--line);font-size:10px}
+  #nav{margin-left:16px;white-space:nowrap}
+  .navlink{margin-left:6px;padding:6px 11px;border:1px solid var(--cy);border-radius:6px;color:var(--cy);
+    text-decoration:none;font-size:11px;letter-spacing:1px;background:rgba(34,231,255,.06);
+    box-shadow:0 0 8px rgba(34,231,255,.18);transition:all .15s;white-space:nowrap}
+  .navlink:hover{background:var(--cy);color:#04070f;box-shadow:0 0 16px var(--cy)}
+  .navlink.active{background:var(--cy);color:#04070f;font-weight:700;box-shadow:0 0 16px var(--cy)}
+  .tf{padding:0 5px;border-radius:3px;font-size:10px;background:rgba(255,61,240,.12);color:var(--mag)}
+  .bar{height:7px;background:rgba(34,231,255,.08);border-radius:4px;overflow:hidden}
+  .bar>i{display:block;height:100%;background:linear-gradient(90deg,var(--cy),var(--mag));box-shadow:0 0 8px var(--cy)}
+  canvas{width:100%;display:block}
+  .flash{animation:flash .9s}@keyframes flash{from{background:rgba(39,255,158,.25)}to{background:transparent}}
+  /* ALARM banner: estop / max-loss trip — unmissable, explains what happened */
+  #alarm{display:none;padding:14px 22px;border-bottom:2px solid var(--red);
+    background:repeating-linear-gradient(135deg,rgba(255,77,109,.22) 0 18px,rgba(255,77,109,.10) 18px 36px);
+    animation:alarmpulse 1.1s infinite;font-size:13px}
+  @keyframes alarmpulse{0%,100%{box-shadow:inset 0 0 40px rgba(255,77,109,.5)}50%{box-shadow:inset 0 0 90px rgba(255,77,109,.9)}}
+  #alarm .ttl{font-size:17px;font-weight:700;letter-spacing:2px;color:#fff;text-shadow:0 0 14px var(--red)}
+  #alarm.amber{border-color:var(--amb);animation:none;
+    background:repeating-linear-gradient(135deg,rgba(255,207,77,.16) 0 18px,rgba(255,207,77,.07) 18px 36px)}
+  #alarm.amber .ttl{text-shadow:0 0 14px var(--amb)}
+  /* control switchboard */
+  .ctlbtn{cursor:pointer;padding:7px 14px;border-radius:6px;border:1px solid var(--line);
+    background:rgba(34,231,255,.06);color:var(--fg);font:inherit;letter-spacing:1px;transition:all .15s}
+  .ctlbtn:hover{box-shadow:0 0 12px rgba(34,231,255,.35)}
+  .ctlbtn.estop{border-color:var(--red);color:var(--red);font-weight:700;
+    box-shadow:0 0 10px rgba(255,77,109,.35)}
+  .ctlbtn.estop:hover{background:var(--red);color:#04070f;box-shadow:0 0 18px var(--red)}
+  .ctlbtn.resume{border-color:var(--grn);color:var(--grn);font-weight:700}
+  .ctlbtn.resume:hover{background:var(--grn);color:#04070f;box-shadow:0 0 18px var(--grn)}
+  .ctlbtn.on{background:var(--cy);color:#04070f;font-weight:700;box-shadow:0 0 14px var(--cy)}
+  .ctl input[type=number]{width:74px;background:rgba(34,231,255,.06);border:1px solid var(--line);
+    border-radius:5px;color:var(--fg);font:inherit;padding:5px 7px;text-align:right}
+  .ctl .blk{display:flex;flex-direction:column;gap:7px;padding:0 18px;border-left:1px solid var(--line)}
+  .ctl .blk:first-child{border-left:none;padding-left:0}
+  .ctl .lbl{font-size:9px;color:var(--mut);letter-spacing:1px;text-transform:uppercase}
+</style>
+</head>
+<body>
+<header>
+  <span class="dot"></span><h1>◢ MAXWELL ◣</h1>
+  <span class="sub" id="sub">booting…</span>
+  <span class="mut" id="thr" style="margin-left:auto"></span>
+  <span class="mut" id="updated"></span>
+  <span id="nav" title="switch engine view">
+    <a class="navlink" href="/" data-view="main">main</a>
+    <a class="navlink" href="/conditional" data-view="cond">conditional</a>
+  </span>
+</header>
+<div id="alarm"></div>
+<div class="grid">
+  <div class="panel c12 ctl"><h2>Risk Controls · global, all lanes · toggles take effect next engine cycle</h2>
+    <div id="controls" style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start">
+      <span class="mut">loading control plane…</span></div></div>
+  <div class="panel c8"><h2>Equity Curve — real (solid) vs ghost take-profit overlay (amber dashed)</h2>
+    <canvas id="pnl" height="190"></canvas></div>
+  <div class="panel c4"><h2>Vitals</h2><div id="perf"></div>
+    <div style="margin-top:12px"><h2>Feed · Chainlink-anchored</h2><div id="feed"></div></div></div>
+
+  <div class="panel c6"><h2>Open Positions</h2><div id="open"></div></div>
+  <div class="panel c6"><h2>Throughput · by timeframe / asset</h2><div id="thrtab"></div></div>
+
+  <div class="panel c12"><h2>Settled Trades · real Chainlink settlement</h2><div id="settled"></div></div>
+
+  <div class="panel c12" id="condpanel" style="display:none">
+    <h2>Conditional Skill · drift-controlled per (timeframe × mid-band) — gap = r_up − r_dn  (gap&gt;0: raw sign predicts · gap&lt;0: flip · earned cells are traded)</h2>
+    <div id="condskill"></div></div>
+
+  <div class="panel c4"><h2>Calibration <span class="mut" id="calerr"></span></h2><div id="cal"></div></div>
+  <div class="panel c4"><h2>Specialist Heads · reliability</h2><div id="heads"></div></div>
+  <div class="panel c4"><h2>Bucket Edge · online feedback</h2><div id="buckets"></div>
+    <div style="margin-top:8px"><div id="regimes"></div></div></div>
+
+  <div class="panel c6"><h2>Markov+Boltzmann Edge Test · model vs market (Brier/log-loss)</h2>
+    <div id="calib"><span class="mut">accumulating settled markets…</span></div></div>
+  <div class="panel c6"><h2>Decision Stream</h2><div id="dec"></div></div>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+// same page serves the engines; /conditional -> /x prefix, /mm -> /m, /drift -> /d, else main
+const PATH = location.pathname.replace(/\/$/,'');
+const VIEW = PATH==='/conditional' ? 'cond' : 'main';
+const API = VIEW==='cond' ? '/x' : '';
+if(VIEW==='cond'){
+  document.title='◢ CONDITIONAL · skill-cell gate ◣';
+  const h=document.querySelector('h1'); if(h) h.innerHTML='◢ CONDITIONAL · skill gate ◣';
+}
+// highlight the active engine in the nav
+document.querySelectorAll('.navlink').forEach(a=>{ if(a.dataset.view===VIEW) a.classList.add('active'); });
+const n=(v,d=2)=>v==null||isNaN(v)?'–':(+v).toLocaleString(undefined,{maximumFractionDigits:d,minimumFractionDigits:d});
+const sgn=v=>v==null?'mut':(v>0?'grn':v<0?'red':'mut');
+function rows(arr,cols){let h='<table><tr>'+cols.map(c=>`<th>${c[0]}</th>`).join('')+'</tr>';
+  for(const r of arr){h+='<tr>'+cols.map(c=>`<td class="${c[2]?c[2](r):''}">${c[1](r)}</td>`).join('')+'</tr>';}return h+'</table>';}
+
+let settleSeries=[], lastSettleCount=0, BASE=1000;
+function drawPnL(){
+  const cv=$('pnl'),ctx=cv.getContext('2d');
+  const w=cv.width=cv.clientWidth*devicePixelRatio, h=cv.height=190*devicePixelRatio;
+  ctx.clearRect(0,0,w,h);
+  const pad=46*devicePixelRatio;   // wider left margin so $ axis labels fit
+  const pts=settleSeries;   // values are TOTAL EQUITY ($)
+  if(pts.length<1){
+    ctx.strokeStyle='rgba(34,231,255,.08)';ctx.lineWidth=1;
+    for(let i=0;i<=4;i++){const y=pad+(h-2*pad)*i/4;ctx.beginPath();ctx.moveTo(pad,y);ctx.lineTo(w-pad,y);ctx.stroke();}
+    ctx.fillStyle='#5d7392';ctx.font=`${12*devicePixelRatio}px monospace`;ctx.fillText('no equity history yet…',pad,h/2);return;}
+  const gs=pts.map(p=>p.g).filter(x=>x!=null);
+  const ys=pts.map(p=>p.v), mn=Math.min(BASE,...ys,...gs), mx=Math.max(BASE,...ys,...gs), rng=(mx-mn)||1;
+  const X=i=>pad+(w-2*pad)*(pts.length<2?0.5:i/(pts.length-1));
+  const Y=v=>h-pad-(h-2*pad)*(v-mn)/rng;
+  // gridlines + right-aligned $ axis labels (so historic equity is readable off the line)
+  ctx.strokeStyle='rgba(34,231,255,.08)';ctx.lineWidth=1;
+  ctx.font=`${9.5*devicePixelRatio}px monospace`;ctx.textAlign='right';ctx.textBaseline='middle';
+  for(let i=0;i<=4;i++){const y=pad+(h-2*pad)*i/4;
+    ctx.beginPath();ctx.moveTo(pad,y);ctx.lineTo(w-pad,y);ctx.stroke();
+    const val=mx-(mx-mn)*i/4;
+    ctx.fillStyle='#7f97b5';ctx.fillText('$'+val.toLocaleString(undefined,{maximumFractionDigits:0}),pad-5*devicePixelRatio,y);}
+  ctx.textAlign='left';ctx.textBaseline='alphabetic';
+  // starting-bankroll baseline ($1000)
+  ctx.strokeStyle='rgba(255,255,255,.18)';ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(pad,Y(BASE));ctx.lineTo(w-pad,Y(BASE));ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle='#7a8db0';ctx.font=`${9*devicePixelRatio}px monospace`;ctx.textAlign='right';ctx.fillText('start $'+BASE.toLocaleString(),w-pad-3*devicePixelRatio,Y(BASE)-4*devicePixelRatio);ctx.textAlign='left';
+  // area fill
+  const grad=ctx.createLinearGradient(0,pad,0,h-pad);
+  const up=ys[ys.length-1]>=BASE;
+  grad.addColorStop(0,up?'rgba(39,255,158,.35)':'rgba(255,77,109,.35)');grad.addColorStop(1,'rgba(4,7,15,0)');
+  ctx.beginPath();ctx.moveTo(X(0),Y(BASE));pts.forEach((p,i)=>ctx.lineTo(X(i),Y(p.v)));ctx.lineTo(X(pts.length-1),Y(BASE));ctx.closePath();ctx.fillStyle=grad;ctx.fill();
+  // glow line
+  ctx.shadowBlur=14*devicePixelRatio;ctx.shadowColor=up?'#27ff9e':'#ff4d6d';
+  ctx.strokeStyle=up?'#27ff9e':'#ff4d6d';ctx.lineWidth=2.2*devicePixelRatio;
+  ctx.beginPath();pts.forEach((p,i)=>i?ctx.lineTo(X(i),Y(p.v)):ctx.moveTo(X(i),Y(p.v)));ctx.stroke();ctx.shadowBlur=0;
+  // last point = current equity
+  const lx=X(pts.length-1),ly=Y(ys[ys.length-1]);
+  ctx.fillStyle=up?'#27ff9e':'#ff4d6d';ctx.beginPath();ctx.arc(lx,ly,3.5*devicePixelRatio,0,7);ctx.fill();
+  ctx.fillStyle=up?'#27ff9e':'#ff4d6d';ctx.font=`bold ${13*devicePixelRatio}px monospace`;
+  ctx.fillText('$'+ys[ys.length-1].toFixed(0),lx-52*devicePixelRatio,ly-8*devicePixelRatio);
+  // ghost take-profit overlay (amber dashed) — equity if we'd sold winners at the TP level
+  const gi=pts.map((p,i)=>[i,p.g]).filter(x=>x[1]!=null);
+  if(gi.length){
+    ctx.shadowBlur=8*devicePixelRatio;ctx.shadowColor='#ffcf4d';
+    ctx.strokeStyle='#ffcf4d';ctx.lineWidth=1.8*devicePixelRatio;ctx.setLineDash([5,3]);
+    ctx.beginPath();gi.forEach(([i,v],k)=>k?ctx.lineTo(X(i),Y(v)):ctx.moveTo(X(i),Y(v)));ctx.stroke();
+    ctx.setLineDash([]);ctx.shadowBlur=0;
+    const [li,lv]=gi[gi.length-1];
+    ctx.fillStyle='#ffcf4d';ctx.beginPath();ctx.arc(X(li),Y(lv),3*devicePixelRatio,0,7);ctx.fill();
+    ctx.font=`bold ${11*devicePixelRatio}px monospace`;
+    ctx.fillText('TP $'+lv.toFixed(0),X(li)-52*devicePixelRatio,Y(lv)+15*devicePixelRatio);
+    // legend
+    ctx.textAlign='left';ctx.font=`${9.5*devicePixelRatio}px monospace`;
+    ctx.fillStyle=up?'#27ff9e':'#ff4d6d';ctx.fillText('— real',pad,pad-6*devicePixelRatio);
+    ctx.fillStyle='#ffcf4d';ctx.fillText('-- ghost take-profit',pad+52*devicePixelRatio,pad-6*devicePixelRatio);
+  }
+}
+
+async function tick(){
+  let s; try{ s=await (await fetch(API+'/status.json',{cache:'no-store'})).json(); }catch(e){ $('sub').textContent='● engine offline'; return; }
+  if(!s.updated){ $('sub').textContent='waiting for engine…'; return; }
+  $('sub').textContent=s.feed||'';
+  $('updated').textContent=new Date(s.updated).toLocaleTimeString();
+  const p=s.performance||{};
+  const cfg=s.config||{};
+  $('thr').innerHTML=`<span class="cy">${p.markets_tracked||0}</span> markets · <span class="cy">${p.decisions||0}</span> decisions · <span class="cy">${p.model_updates||0}</span> learns`+
+    (cfg.band?` · <span class="pill grn">gate ${cfg.gate||'edge=|p_cal−mid|'}</span> <span class="pill">band ${cfg.band[0]}–${cfg.band[1]}</span>`:'');
+  // feed
+  $('feed').innerHTML=rows(Object.entries(s.assets||{}).map(([a,v])=>({a,...v})),
+    [['Asset',r=>r.a],['Price',r=>'$'+n(r.chainlink,r.chainlink>100?1:4)],['ticks',r=>r.n_history]]);
+  // vitals
+  const reconBad=(p.recon_mismatch||0)>0;
+  if(p.starting_bankroll) BASE=p.starting_bankroll;
+  const equity=(p.equity!=null)?p.equity:(BASE+(p.cum_pnl||0));
+  const filledOpen=(s.open_positions||[]).filter(r=>r.status==='filled'&&r.now_bid!=null);
+  const openPnl=filledOpen.reduce((sum,r)=>sum+(r.now_bid-r.fill_price)*r.size,0);
+  $('perf').innerHTML=`<div class="kpi">
+    <div><span>total equity</span><b class="big glow ${equity>=BASE?'grn':'red'}">$${n(equity,0)}</b><span>start $${n(BASE,0)}</span></div>
+    <div><span>pnl</span><b class="big ${sgn(p.cum_pnl)}">${(p.cum_pnl>=0?'+':'')+n(p.cum_pnl,1)}</b></div>
+    <div><span>open pnl</span><b class="big glow ${openPnl>=0?'grn':'red'}">${(openPnl>=0?'+':'')+n(openPnl,2)}</b><span>${filledOpen.length} live</span></div>
+    <div><span>win rate</span><b class="big cy">${p.winrate!=null?n(p.winrate*100,1)+'%':'–'}</b><span>${p.settled||0} settled</span></div></div>
+    <div class="kpi" style="margin-top:10px">
+    <div><span>fill rate</span><b class="${p.fill_rate!=null&&p.fill_rate<0.4?'red':'cy'}">${p.fill_rate!=null?n(p.fill_rate*100,0)+'%':'–'}</b><span>${p.fills||0}✓ / ${p.no_fills||0}✗</span></div>
+    <div><span>recon</span><b class="${reconBad?'red':'grn'}">${p.recon_checked?((p.recon_checked-p.recon_mismatch)+'/'+p.recon_checked):'–'}</b><span>vs venue</span></div>
+    <div><span>model learns</span><b class="cy">${p.model_updates||0}</b></div></div>`
+    + (s.tp&&s.tp.level>0?`<div class="kpi" style="margin-top:10px;border-top:1px dashed var(--amb);padding-top:9px">
+    <div><span>⊙ ghost TP @${n(s.tp.level,2)}</span><b class="big glow amb">$${n(s.tp.equity,0)}</b><span>take-profit overlay</span></div>
+    <div><span>vs real</span><b class="${sgn(s.tp.delta_vs_real)}">${(s.tp.delta_vs_real>=0?'+':'')+n(s.tp.delta_vs_real,1)}</b><span>since seam</span></div>
+    <div><span>exits</span><b class="amb">${s.tp.exits||0}</b><span>${s.tp.held||0} held</span></div>
+    <div><span>tp win%</span><b class="cy">${s.tp.winrate!=null?n(s.tp.winrate*100,1)+'%':'–'}</b><span>${s.tp.settled||0} trades</span></div></div>`:'');
+  // open
+  const assets=s.assets||{};
+  $('open').innerHTML=(s.open_positions&&s.open_positions.length)?rows(s.open_positions,
+    [['Ticker',r=>r.ticker||r.market],['Bet',r=>`<span class="${r.side=='up'?'grn':'red'}">${r.side.toUpperCase()}</span>`],
+     ['Status',r=>`<span class="${r.status=='filled'?'grn':'amb'}">${(r.status||'').toUpperCase()}</span>`],
+     ['Live $',r=>{const a=assets[r.asset];return a?'$'+n(a.chainlink,a.chainlink>100?0:4):'–';}],
+     ['Limit',r=>n(r.fill_price,3)],['Size',r=>n(r.size,0)],['P',r=>n(r.p_model,3)],
+     ['Peak',r=>r.peak_bid?n(r.peak_bid,2):'–',r=>r.tp_hit?'amb glow':(r.peak_bid>=0.8?'cy':'mut')],
+     ['Now',r=>r.now_bid!=null?n(r.now_bid,2):'–'],
+     ['Open PnL',r=>{if(r.status!=='filled'||r.now_bid==null)return'<span class="mut">–</span>';const op=(r.now_bid-r.fill_price)*r.size;return`<span class="${sgn(op)}">${op>=0?'+':''}${n(op,2)}</span>`;}],
+     ['Δrev',r=>r.drawdown!=null?'-'+n(r.drawdown,2):'–',r=>r.drawdown>=0.05?'red glow':(r.drawdown>0?'amb':'mut')],
+     ['TP',r=>r.tp_hit?'<span class="amb glow">●ARMED</span>':'<span class="mut">–</span>'],
+     ['t-',r=>n(r.mins_to_settle,1)+'m']]):'<span class="mut">no resting/open orders</span>';
+  // coverage by timeframe — show ALL configured lanes (incl. dark ones), all-time
+  // counts from the DB so a thin lane (e.g. 1h) stays visible instead of vanishing.
+  const dec=s.recent_decisions||[];
+  const cfgTfs=(s.config&&s.config.timeframes)||[];
+  let thr={by_tf:{},by_asset:{}};
+  try{ thr=await (await fetch(API+'/throughput.json',{cache:'no-store'})).json(); }catch(e){}
+  const seen=new Set(cfgTfs);
+  const tfRows=cfgTfs.map(tf=>({tf,...(thr.by_tf[tf]||{decisions:0,trades:0,settled:0})}));
+  for(const tf in thr.by_tf){ if(!seen.has(tf)) tfRows.push({tf,...thr.by_tf[tf]}); }   // traded but not configured
+  $('thrtab').innerHTML=
+    rows(tfRows,[['Timeframe',r=>`<span class="tf">${r.tf}</span>`],
+      ['decisions',r=>r.decisions||0],['trades',r=>r.trades||0,r=>r.trades?'cy':'mut'],
+      ['settled',r=>r.settled||0],
+      ['Win%',r=>r.winrate!=null?n(r.winrate*100,0)+'%':'–',r=>r.settled?sgn(r.winrate-0.5):''],
+      ['PnL',r=>r.settled?(r.pnl>=0?'+':'')+n(r.pnl,1):'–',r=>r.settled?sgn(r.pnl):''],
+      ['',r=>r.decisions>0?'<span class="grn glow">● live</span>':'<span class="mut">○ dark</span>']])
+    +'<div style="height:6px"></div>'+
+    rows(Object.entries(thr.by_asset).map(([k,v])=>({k,...v})),
+      [['Asset',r=>r.k],['decisions',r=>r.decisions||0],['trades',r=>r.trades||0,r=>r.trades?'cy':'mut'],
+       ['settled',r=>r.settled||0],
+       ['Win%',r=>r.winrate!=null?n(r.winrate*100,0)+'%':'–',r=>r.settled?sgn(r.winrate-0.5):''],
+       ['PnL',r=>r.settled?(r.pnl>=0?'+':'')+n(r.pnl,1):'–',r=>r.settled?sgn(r.pnl):'']]);
+  const mdl=s.model||{};
+  $('calerr').textContent=mdl.calib_err!=null?`· err ${n(mdl.calib_err,3)}`:'';
+  // calibration
+  $('cal').innerHTML=rows(mdl.calibration||[],
+    [['Pred',r=>r.bucket],['n',r=>r.n],['Actual',r=>r.hit_rate==null?'–':n(r.hit_rate*100,0)+'%',r=>sgn((r.hit_rate||.5)-.5)]]);
+  // specialist heads + reliability
+  $('heads').innerHTML=rows(mdl.heads||[],
+    [['Head',r=>r.name],['Reliability',r=>n(r.reliability,3),r=>sgn(r.reliability-0.5)],['n',r=>r.n],
+     ['',r=>`<div class="bar"><i style="width:${Math.min(100,r.reliability*100)}%"></i></div>`]]);
+  // bucket edge (online realized feedback)
+  $('buckets').innerHTML=(mdl.bucket_edge&&mdl.bucket_edge.length)?rows(mdl.bucket_edge,
+    [['Regime|TF',r=>r.bucket],['n',r=>r.n],['Win%',r=>n(r.win_rate*100,0)+'%',r=>sgn(r.win_rate-0.5)]])
+    :'<span class="mut">accumulating…</span>';
+  $('regimes').innerHTML=(mdl.regimes_seen||[]).map(r=>`<span class="pill" style="margin:2px;display:inline-block">${r}</span>`).join('');
+  // conditional-skill cells (drift-controlled per tf×band). Shown whenever populated;
+  // it's the gate the conditional engine trades on (and a reference on the others).
+  const cells=mdl.cond_skill||[];
+  if(cells.length){
+    $('condpanel').style.display='';
+    const sideTag=r=>r.side=='raw'?'<span class="grn">▲ raw</span>':r.side=='flip'?'<span class="mag">⮃ flip</span>':r.side=='warm'?'<span class="amb">… warm</span>':'<span class="mut">— flat</span>';
+    $('condskill').innerHTML=rows(cells,
+      [['Cell (tf|band)',r=>r.cell],['n↑',r=>n(r.n_up,0)],['n↓',r=>n(r.n_dn,0)],
+       ['r_up',r=>n(r.r_up,3)],['r_dn',r=>n(r.r_dn,3)],
+       ['gap',r=>(r.gap>=0?'+':'')+n(r.gap,3),r=>sgn(r.gap)],
+       ['trades',r=>sideTag(r)]]);
+  } else { $('condpanel').style.display='none'; }
+  // decision stream
+  $('dec').innerHTML=rows(dec,
+    [['Time',r=>new Date(r.ts).toLocaleTimeString()],['Ticker',r=>r.ticker||r.market],['TF',r=>`<span class="tf">${r.tf||''}</span>`],
+     ['t-',r=>n(r.mins_left,1)+'m'],['z',r=>n(r.z_dist,2),r=>sgn(r.z_dist)],['P',r=>n(r.p_cal,3)],
+     ['Pmove',r=>n(r.move_prob,2),r=>r.move_prob>0.5?'cy':'mut'],['fvR',r=>n(r.fv_resid,3),r=>sgn(r.fv_resid)],
+     ['Side',r=>r.side],['mid',r=>n(r.book_mid_up,3)],['EV',r=>n(r.ev,3),r=>sgn(r.ev)],
+     ['Regime',r=>`<span class="pill">${r.regime}</span>`],
+     ['',r=>`<span class="${r.decision=='TRADE'?'grn glow':'mut'}">${r.decision}</span>`]]);
+  // settled + equity curve (from SQLite via dashboard server)
+  try{
+    const eq=await (await fetch(API+'/equity.json',{cache:'no-store'})).json();
+    // equity curve = $BASE start, then BASE+cum_pnl at each settlement, + live tip (now).
+    // g = ghost take-profit equity (BASE+tp_cum_pnl) where tracked; null before the seam.
+    const series=[{v:BASE,g:null}].concat(eq.map(r=>({v:BASE+r.cum_pnl,
+        g:r.tp_cum_pnl!=null?BASE+r.tp_cum_pnl:null})));
+    const tp=s.tp||null;
+    if(equity!=null) series.push({v:equity,g:(tp&&tp.equity!=null)?tp.equity:null});  // live tip
+    settleSeries=series; drawPnL();
+    const arr=await (await fetch(API+'/settlements.json',{cache:'no-store'})).json(); // DESC
+    const view=arr.filter(r=>r.filled).slice(0,30);
+    const prec=v=>'$'+n(v,(v!=null&&v>100)?1:5);
+    $('settled').innerHTML=view.length?rows(view,
+      [['Time',r=>new Date(r.ts).toLocaleTimeString()],['Ticker',r=>r.ticker||r.market],
+       ['Bet',r=>`<span class="${r.side=='up'?'grn':'red'}">${(r.side||'').toUpperCase()}</span>`],
+       ['Fill',r=>n(r.fill_price,3)],['Strike',r=>prec(r.strike)],['End·CL',r=>prec(r.end_price)],
+       ['Mkt',r=>`<span class="${r.outcome_up?'grn':'red'}">${r.outcome_up?'UP':'DOWN'}</span>`],
+       ['Result',r=>`<span class="${r.won?'grn glow':'red'}">${r.won?'WIN':'LOSS'}</span>`],
+       ['PnL',r=>(r.pnl>=0?'+':'')+n(r.pnl,1),r=>sgn(r.pnl)],
+       ['Equity',r=>'$'+n(BASE+r.cum_pnl,0),r=>sgn(r.pnl)]])
+      :'<span class="mut">no settled trades yet</span>';
+  }catch(e){ drawPnL(); $('settled').innerHTML='<span class="mut">no settlement log yet</span>'; }
+  // markov+boltzmann edge test — model (p_cal) & structural α vs the market mid
+  try{
+    const cb=await (await fetch(API+'/calib.json',{cache:'no-store'})).json();
+    if(!cb||!cb.ready){ $('calib').innerHTML='<span class="mut">accumulating settled markets… '+((cb&&cb.n)||0)+' so far (need ≥30)</span>'; }
+    else{
+      const mb=cb.market?cb.market.brier:null;
+      const defs=[['market (mid)',cb.market,'amb'],['ensemble (p_cal)',cb.ensemble,'cy'],['structural α',cb.structural,'mag']];
+      const tbl=`<table><tr><th>forecaster</th><th>n</th><th>Brier</th><th>log-loss</th><th></th></tr>`+
+        defs.filter(r=>r[1]).map(r=>{const s=r[1],isMkt=r[0]==='market (mid)',beats=(mb!=null&&!isMkt&&s.brier<mb);
+          return `<tr><td class="${r[2]}">${r[0]}</td><td>${s.n}</td>`+
+            `<td class="${beats?'grn glow':(isMkt?'':'red')}">${n(s.brier,4)}</td><td>${n(s.logloss,4)}</td>`+
+            `<td>${isMkt?'<span class="mut">baseline to beat</span>':(beats?'<span class="grn">▲ beats market</span>':'<span class="red">▼ worse</span>')}</td></tr>`;}).join('')+`</table>`;
+      const win=/beat the market/.test(cb.verdict||'');
+      // directional-skill readout: is the traded signal sign(p_cal−mid) predictive?
+      let dirHtml='';
+      const d=cb.directional;
+      if(d&&d.disagreement_auc!=null){
+        const a=d.disagreement_auc, good=a>0.52, bad=a<0.48;
+        const cls=good?'grn glow':(bad?'red':'amb');
+        const tag=good?'predictive (real edge)':(bad?'ANTI-predictive (signal backwards)':'no edge — P&L is regime beta');
+        dirHtml=`<div style="margin-top:10px"><b>directional skill</b> — does our disagreement with the market predict the outcome?`+
+          `<table style="margin-top:4px"><tr><th>signal lean</th><th>n</th><th>realized UP-rate</th></tr>`+
+          `<tr><td class="grn">p_cal &gt; mid (UP)</td><td>${d.up_lean_n}</td><td>${d.up_lean_realized_up!=null?n(d.up_lean_realized_up*100,1)+'%':'–'}</td></tr>`+
+          `<tr><td class="red">p_cal &lt; mid (DOWN)</td><td>${d.dn_lean_n}</td><td>${d.dn_lean_realized_up!=null?n(d.dn_lean_realized_up*100,1)+'%':'–'}</td></tr></table>`+
+          `<div class="${cls}" style="margin-top:4px">disagreement AUC = ${n(a,4)} · ${tag}</div></div>`;
+      }
+      $('calib').innerHTML=tbl+`<div class="${win?'grn glow':'amb'}" style="margin-top:8px">▶ ${cb.verdict}</div>`+
+        `<div class="mut" style="margin-top:4px">lower = prices outcomes better · ${cb.n} settled markets scored (all evaluated, not just traded)</div>`+dirHtml;
+    }
+  }catch(e){ /* calib endpoint not ready */ }
+}
+tick(); setInterval(tick,4000); window.addEventListener('resize',drawPnL);
+
+// ---------------- risk-control switchboard (global, all lanes) ----------------
+async function ctlPost(path,body){ try{ await fetch(path,{method:'POST',body:JSON.stringify(body||{})}); }catch(e){} await ctl(); }
+window.ctlSet=(body)=>ctlPost('/control/set',body);
+window.ctlEstop=(on)=>{ if(!on||confirm('EMERGENCY STOP: freeze ALL engines immediately?\n(no decisions, no settlements, no learning — until resumed)')) ctlSet({estop:!!on}); };
+window.ctlClearTrip=()=>{ if(confirm('Clear the max-loss trip and re-enable new entries on all lanes?')) ctlPost('/control/clear-trip'); };
+async function ctl(){
+  let c; try{ c=await (await fetch('/control.json',{cache:'no-store'})).json(); }catch(e){ return; }
+  const ct=c.control||{}, trip=c.tripped, agg=c.agg||{}, ml=ct.max_loss||{}, ec=ct.exposure_cap||{};
+  const haltOn=!!ct.halt_entries||!!c.halt_file;
+  // ---- ALARM banner: the unmissable "what happened" strip ----
+  const al=$('alarm'); let bn=[];
+  if(ct.estop) bn.push(`<div><span class="ttl">■ EMERGENCY STOP ACTIVE — ALL ENGINES FROZEN</span><br>`+
+    `<b>${ct.estop_reason||'operator'}</b> · since ${ct.estop_ts?new Date(ct.estop_ts).toLocaleString():'–'} · no decisions, no settlements, no learning `+
+    `<button class="ctlbtn resume" style="margin-left:14px" onclick="ctlEstop(false)">RESUME ENGINES</button></div>`);
+  if(trip) bn.push(`<div style="margin-top:${bn.length?8:0}px"><span class="ttl">▮ MAX-LOSS BREAKER TRIPPED — NEW ENTRIES BLOCKED (ALL LANES)</span><br>`+
+    `<b>${trip.reason||''}</b> · day PnL <b class="red">${n(trip.day_pnl,2)}</b> vs limit −$${n(trip.limit,0)} · at ${trip.ts?new Date(trip.ts).toLocaleString():'–'} · latched until cleared `+
+    `<button class="ctlbtn resume" style="margin-left:14px" onclick="ctlClearTrip()">CLEAR TRIP · RESUME ENTRIES</button></div>`);
+  if(!ct.estop&&!trip&&haltOn) bn.push(`<div><span class="ttl">▯ ENTRIES HALTED (soft) — engines settling/learning only</span> `+
+    `<button class="ctlbtn resume" style="margin-left:14px" onclick="ctlSet({halt_entries:false})">RESUME ENTRIES</button>`+
+    (c.halt_file?`<span class="mut" style="margin-left:10px">(data/HALT file also set — remove it to fully resume)</span>`:'')+`</div>`);
+  al.className=(ct.estop||trip)?'':'amber'; al.style.display=bn.length?'block':'none'; al.innerHTML=bn.join('');
+  // ---- switchboard panel ----
+  const dayP=agg.day_pnl!=null?agg.day_pnl:0, eq=agg.equity||0, open$=agg.open_cost||0;
+  const capT=(ec.max_total_frac||0)*eq, capA=(ec.max_asset_frac||0)*eq;
+  const assets=Object.entries(agg.by_asset||{}).map(([a,v])=>`<span class="pill" style="margin:1px">${a} $${n(v,0)}</span>`).join(' ')||'<span class="mut">none</span>';
+  const partial=(agg.partial&&agg.partial.length)?`<span class="amb">⚠ lanes pre-restart (day-PnL not reported): ${agg.partial.join(', ')}</span>`:'';
+  $('controls').innerHTML=`
+    <div class="blk">
+      <span class="lbl">emergency stop · freeze everything</span>
+      ${ct.estop?'<button class="ctlbtn resume" onclick="ctlEstop(false)">RESUME ENGINES</button>'
+                :'<button class="ctlbtn estop" onclick="ctlEstop(true)">■ EMERGENCY STOP</button>'}
+      <span class="lbl">entry halt · settle/learn continue</span>
+      <button class="ctlbtn ${haltOn?'on':''}" onclick="ctlSet({halt_entries:${haltOn?'false':'true'}})">${haltOn?'entries HALTED — resume':'halt new entries'}</button>
+    </div>
+    <div class="blk">
+      <span class="lbl">max-loss breaker · realized day PnL, all lanes</span>
+      <div><button class="ctlbtn ${ml.enabled?'on':''}" onclick="ctlSet({max_loss:{enabled:${ml.enabled?'false':'true'}}})">${ml.enabled?'ARMED':'off'}</button>
+        limit −$<input type="number" min="1" step="5" value="${Math.round(ml.limit||0)}"
+          onchange="ctlSet({max_loss:{limit:Math.abs(+this.value)||${ml.limit||150}}})"></div>
+      <div>day PnL <b class="${sgn(dayP)}">${(dayP>=0?'+':'')+n(dayP,2)}</b> / −$${n(ml.limit,0)}
+        ${trip?'<span class="red glow"> · TRIPPED</span>':(ml.enabled?'<span class="grn"> · armed</span>':'<span class="mut"> · disarmed</span>')}</div>
+      <div class="bar" style="width:180px"><i style="width:${Math.min(100,ml.limit?Math.max(0,-dayP)/ml.limit*100:0)}%;background:linear-gradient(90deg,var(--amb),var(--red))"></i></div>
+    </div>
+    <div class="blk">
+      <span class="lbl">cross-lane exposure cap · committed $ vs combined equity</span>
+      <div><button class="ctlbtn ${ec.enabled?'on':''}" onclick="ctlSet({exposure_cap:{enabled:${ec.enabled?'false':'true'}}})">${ec.enabled?'ARMED':'off'}</button>
+        total <input type="number" min="1" max="100" step="1" value="${Math.round((ec.max_total_frac||0)*100)}"
+          onchange="ctlSet({exposure_cap:{max_total_frac:Math.min(1,Math.abs(+this.value)/100)||${ec.max_total_frac||0.1}}})">%
+        · per-asset <input type="number" min="1" max="100" step="1" value="${Math.round((ec.max_asset_frac||0)*100)}"
+          onchange="ctlSet({exposure_cap:{max_asset_frac:Math.min(1,Math.abs(+this.value)/100)||${ec.max_asset_frac||0.05}}})">%</div>
+      <div>open <b class="${open$>capT&&ec.enabled?'red glow':'cy'}">$${n(open$,0)}</b> / cap $${n(capT,0)} (equity $${n(eq,0)})
+        · per-asset cap $${n(capA,0)}</div>
+      <div>${assets}</div>
+    </div>
+    <div class="blk">
+      <span class="lbl">lane coverage</span>
+      <div>${(agg.lanes||[]).map(l=>`<span class="pill" style="margin:1px">${l.name} ${l.pnl_today!=null?((l.pnl_today>=0?'+':'')+n(l.pnl_today,1)):'–'} · ${l.open_positions}pos</span>`).join(' ')||'<span class="mut">no fresh lanes</span>'}</div>
+      ${partial}
+    </div>`;
+}
+ctl(); setInterval(ctl,3000);
+</script>
+</body>
+</html>

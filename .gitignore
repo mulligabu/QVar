@@ -1,0 +1,23 @@
+.env
+.env.local
+data/*.db
+data/*.sqlite
+data/secrets/
+*.pem
+*.key
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+node_modules/
+frontend/dist/
+.venv/
+dist/
+data/forward_live/
+# runtime artifacts — back up SOURCE only, not live DBs/logs/state
+data/
+*.db
+*.log
+status.json
+model_state.json
+*.tmp
